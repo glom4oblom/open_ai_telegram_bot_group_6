@@ -1,6 +1,9 @@
 import logging
+import os.path
+import tempfile
 from random import choice
 
+from openai import OpenAI
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -28,6 +31,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'random': 'Дізнатися випадковий факт',
             'gpt': 'Запитати ChatGPT',
             'talk': 'Діалог з відомою особистістю',
+            'voice': 'Голосове на основі вашого повідомлення',
         }
     )
 
@@ -211,3 +215,30 @@ async def show_funny_response(update: Update, context: ContextTypes.DEFAULT_TYPE
     """
     full_message = f"{random_response}\n{available_commands}"
     await update.message.reply_text(full_message)
+
+
+async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Введіть текст для озвучки. Приклад: /voice Привіт, як справи?")
+        return
+    text = ' '.join(context.args)
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
+            temp_path = temp_file.name
+
+        client = OpenAI(api_key=CHATGPT_TOKEN)
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=text,
+        )
+
+        response.stream_to_file(temp_path)
+
+        with open(temp_path, 'rb') as audio:
+            await update.message.reply_voice(voice=audio)
+    except Exception as e:
+        await update.message.reply_text(f"Виникла помилка при генерації звуку: {str(e)}")
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
