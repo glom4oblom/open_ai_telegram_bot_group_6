@@ -6,6 +6,7 @@ from random import choice
 from openai import OpenAI
 from telegram import Update
 from telegram.ext import ContextTypes
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 from config import CHATGPT_TOKEN
 from gpt import ChatGPTService
@@ -34,6 +35,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'voice': 'Голосове на основі вашого повідомлення',
         }
     )
+
 
 
 async def random(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -242,3 +244,25 @@ async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         if os.path.exists(temp_path):
             os.unlink(temp_path)
+
+async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Введіть опис картинки. Приклад: /image Кіт в чоботях")
+        return
+
+    promt = ''.join(context.args)
+    try:
+        client = OpenAI(api_key=CHATGPT_TOKEN)
+
+        responce = client.images.generate(
+            model="dall-e-3",
+            prompt=promt,
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+
+        image_url = responce.data[0].url
+        await update.message.reply_photo(photo=image_url)
+    except Exception as e:
+        await update.message.reply_text(f"Произошла ошибка при генерации изображения: {str(e)}")
